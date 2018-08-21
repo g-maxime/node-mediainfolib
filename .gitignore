@@ -1,0 +1,9 @@
+build
+node_modules
+
+*.flac
+*.wav
+*.mp3
+*.txt
+
+

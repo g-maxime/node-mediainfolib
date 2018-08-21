@@ -1,0 +1,22 @@
+{
+    "name": "node-mediainfolib",
+    "version": "1.0.0",
+    "main": "main.js",
+    "keywords": [
+        "mediainfo"
+    ],
+    "scripts": {
+        "build:dev": "node-gyp build --debug",
+        "build": "node-gyp build",
+        "rebuild:dev": "node-gyp rebuild --debug",
+        "rebuild": "node-gyp rebuild",
+        "clean": "node-gyp clean"
+    },
+    "engines": {
+        "node": ">=8.0.0"
+    },
+    "repository": "github:dmooney65/node-mediainfolib",
+    "bugs": {
+        "url": "https://github.com/dmooney65/node-mediainfolib/issues"
+    }
+}
