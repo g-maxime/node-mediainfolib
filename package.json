@@ -18,5 +18,8 @@
     "repository": "github:dmooney65/node-mediainfolib",
     "bugs": {
         "url": "https://github.com/dmooney65/node-mediainfolib/issues"
+    },
+    "dependencies": {
+        "node-addon-api": "1.2.0"
     }
 }
