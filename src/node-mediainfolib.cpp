@@ -310,6 +310,8 @@ napi_value GetLocal(napi_env env, napi_callback_info info)
             }
         }
     }
+    MI.Close();
+    fclose(F);
     uint32_t len;
     //napi_value tracksObj;
     //status = napi_create_object(env, &tracksObj);
@@ -340,7 +342,7 @@ napi_value GetLocal(napi_env env, napi_callback_info info)
     //auto end = std::chrono::system_clock::now();
     //std::chrono::duration<double> diff = end - start;
     //std::cout << "Time " << diff.count() << " s\n";
-    MI.Close();
+    
     return returnObj;
 }
 
