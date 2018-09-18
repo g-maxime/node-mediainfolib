@@ -1,4 +1,4 @@
-const cardinfo = require('./build/Release/mediainfolib');
+const cardinfo = require('bindings')('mediainfolib');
 
 let defaultGeneralProps = ['UniqueID', 'Format', 'Format_Version', 'Format_Profile', 'CodecID/String', 'FileSize/String',
     'Duration/String', 'OverallBitRate_Mode', 'OverallBitRate/String', 'Movie', 'Track', 'Performer', 'Composer', 'Recorder_date',
@@ -46,10 +46,10 @@ module.exports.get = (file, properties = defaultProperties) => {
     if (file.constructor === Array) {
 
         file.forEach((item) => {
-            var info = cardinfo.get(item, properties);
+            var info = cardinfo.get_file(item, properties);
             infos.push(info);
         });
-    } else infos.push(cardinfo.get(file, properties));
+    } else infos.push(cardinfo.get_file(file, properties));
 
     return infos;
 }

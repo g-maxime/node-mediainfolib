@@ -4,110 +4,67 @@
 #include <assert.h>
 #include <regex>
 #include <iostream>
-#include <chrono>
-#include "MediaInfoDLL/MediaInfoDLL.h"
+#include <MediaInfoDLL/MediaInfoDLL.h>
 using namespace MediaInfoDLL;
 using namespace std;
 
-//Init at top level for use in all methods
 MediaInfo MI;
 
-napi_value processProps(napi_env env, stream_t Stream, size_t StreamNumber, napi_value propertiesArray)
+Napi::Object processProps(Napi::Env env, stream_t Stream, size_t StreamNumber, Napi::Array propertiesArray)
 {
-    napi_status status;
-    napi_value returnvalue;
-    status = napi_create_object(env, &returnvalue);
+    Napi::Object returnvalue = Napi::Object::New(env);
 
-    uint32_t len;
-    status = napi_get_array_length(env, propertiesArray, &len);
-    assert(status == napi_ok);
+    uint32_t len = propertiesArray.Length();
 
     for (uint32_t i = 0; i < len; i++)
     {
-        //Get Property
-        napi_value prop;
-        status = napi_get_element(env, propertiesArray, i, &prop);
-        assert(status == napi_ok);
-        //Wrap property for use with MI
-        Napi::String propStr = Napi::String(env, prop);
-        string proptmp = propStr.Utf8Value();
-        string valueStr = MI.Get(Stream, StreamNumber, propStr.Utf8Value(), Info_Text, Info_Name);
+        Napi::String prop = propertiesArray.Get(i).As<Napi::String>();
+        string valueStr = MI.Get(Stream, StreamNumber, prop.Utf8Value(), Info_Text, Info_Name);
         if (!valueStr.empty())
         {
-            //Wrap value fro output
             Napi::String value = Napi::String::From(env, valueStr);
 
-            //Remove all special characters in property to make output easier to deal with
-            //string outStr = std::regex_replace(propStr.Utf8Value(), std::regex("/String"), "");
-            string outStr = std::regex_replace(propStr.Utf8Value(), std::regex("[/()*-]"), "_");
+            // Replace all special characters in property to make output easier to deal with
+            string outStr = std::regex_replace(prop.Utf8Value(), std::regex("[/()*-]"), "_");
             //Wrap regexed string for output
             Napi::String property = Napi::String::From(env, outStr);
-
-            status = napi_set_property(env, returnvalue, property, value);
-            assert(status == napi_ok);
+            returnvalue.Set(property, value);
         }
     }
     return returnvalue;
 }
 
-napi_value Get(napi_env env, napi_callback_info info)
+Napi::Value getFile(const Napi::CallbackInfo &info)
 {
-    size_t result = 0;
-    size_t argc = 2;
-
-    char file[4096];
-
-    napi_value args[2];
-    napi_status status;
-
-    //Input object and property arrays
-    napi_value inputObj; //taken from argv[1]
-    napi_value generalProps;
-    napi_value videoProps;
-    napi_value audioProps;
-    napi_value textProps;
-    napi_value menuProps;
-
+    Napi::Env env = info.Env();
+    
     //Output object and property/value arrays
-    napi_value returnObj;
-    status = napi_create_object(env, &returnObj);
-    assert(status == napi_ok);
-    napi_value general;
-    //status = napi_create_object(env, &general);
-    assert(status == napi_ok);
-    napi_value videoArray;
-    status = napi_create_array(env, &videoArray);
-    napi_value audioArray;
-    status = napi_create_array(env, &audioArray);
-    napi_value textArray;
-    status = napi_create_array(env, &textArray);
-
-    status = napi_get_cb_info(env, info, &argc, args, NULL, NULL);
-    if (status != napi_ok)
-        napi_throw_error(env, NULL, "Failed to parse arguments");
-
-    status = napi_get_value_string_utf8(env, args[0], file, 4096, &result);
-    assert(status == napi_ok);
-    inputObj = args[1];
+    Napi::Object returnObj = Napi::Object::New(env);
+    
+    Napi::Object general = Napi::Object::New(env);
+    Napi::Array videoArray = Napi::Array::New(env);
+    Napi::Array audioArray = Napi::Array::New(env);
+    Napi::Array textArray = Napi::Array::New(env);
+    
+    string file = info[0].As<Napi::String>().Utf8Value();
+    
+    Napi::Object inputObj = info[1].As<Napi::Object>();
     string v = MI.Option(__T("Info_Version"));
-    Napi::String version = Napi::String::From(env, v);
-    status = napi_set_named_property(env, returnObj, "Version", version);
+    returnObj.Set("Version", Napi::String::From(env, v));
+
     MI.Open(__T(file));
 
-    status = napi_set_named_property(env, returnObj, "File", args[0]);
+    returnObj.Set("File", info[0].As<Napi::String>());
 
-    status = napi_get_named_property(env, inputObj, "General", &generalProps);
-    assert(status == napi_ok);
-    status = napi_get_named_property(env, inputObj, "Video", &videoProps);
-    status = napi_get_named_property(env, inputObj, "Audio", &audioProps);
-    status = napi_get_named_property(env, inputObj, "Text", &textProps);
-    status = napi_get_named_property(env, inputObj, "Menu", &menuProps);
+    Napi::Array generalProps = inputObj.Get("General").As<Napi::Array>();
+    Napi::Array videoProps = inputObj.Get("Video").As<Napi::Array>();
+    Napi::Array audioProps = inputObj.Get("Audio").As<Napi::Array>();
+    Napi::Array textProps = inputObj.Get("Text").As<Napi::Array>();
 
     for (size_t StreamKind = (size_t)Stream_General; StreamKind < Stream_Max; StreamKind++)
     {
         for (size_t StreamPos = 0; StreamPos < (size_t)MI.Count_Get((stream_t)StreamKind); StreamPos++)
         {
-            //Pour chaque stream
             String stream = MI.Get((stream_t)StreamKind, StreamPos, __T("StreamKind/String"));
             String pos = MI.Get((stream_t)StreamKind, StreamPos, __T("StreamKindPos"));
             size_t streamNum = 0;
@@ -119,118 +76,81 @@ napi_value Get(napi_env env, napi_callback_info info)
             {
             case Stream_General:
                 general = processProps(env, Stream_General, (size_t)streamNum, generalProps);
-                status = napi_set_named_property(env, returnObj, "General", general);
+                returnObj.Set("General", general);
                 break;
             case Stream_Video:
                 if (videoProps)
                 {
-                    napi_value element = processProps(env, Stream_Video, (size_t)streamNum, videoProps);
-                    status = napi_set_element(env, videoArray, streamNum, element);
+                    Napi::Value element = processProps(env, Stream_Video, (size_t)streamNum, videoProps);
+                    videoArray.Set(streamNum, element);
                 }
                 break;
             case Stream_Audio:
                 if (audioProps)
                 {
-                    napi_value element = processProps(env, Stream_Audio, (size_t)streamNum, audioProps);
-                    status = napi_set_element(env, audioArray, streamNum, element);
+                    Napi::Value element = processProps(env, Stream_Audio, (size_t)streamNum, audioProps);
+                    audioArray.Set(streamNum, element);
                 }
                 break;
             case Stream_Text:
                 if (textProps)
                 {
-                    napi_value element = processProps(env, Stream_Text, (size_t)streamNum, textProps);
-                    status = napi_set_element(env, textArray, streamNum, element);
+                    Napi::Value element = processProps(env, Stream_Text, (size_t)streamNum, textProps);
+                    textArray.Set(streamNum, element);
                 }
                 break;
             }
         }
     }
-    uint32_t len;
-    //napi_value tracksObj;
-    //status = napi_create_object(env, &tracksObj);
-    assert(status == napi_ok);
-    napi_get_array_length(env, videoArray, &len);
-    assert(status == napi_ok);
+
+    MI.Close();
+    
+    uint32_t len = videoArray.Length();
+    
     if (videoProps && len > 0)
     {
-        napi_set_named_property(env, returnObj, "Video", videoArray);
-        assert(status == napi_ok);
+        returnObj.Set("Video", videoArray);
     }
-    napi_get_array_length(env, audioArray, &len);
-    assert(status == napi_ok);
+    len = audioArray.Length();
+    
     if (audioProps && len > 0)
     {
-        napi_set_named_property(env, returnObj, "Audio", audioArray);
-        assert(status == napi_ok);
+        returnObj.Set("Audio", audioArray);
     }
-    napi_get_array_length(env, textArray, &len);
-    assert(status == napi_ok);
+    len = textArray.Length();
+    
     if (textProps && len > 0)
     {
-        napi_set_named_property(env, returnObj, "Text", textArray);
-        assert(status == napi_ok);
+        returnObj.Set("Text", textArray);
     }
-    //status = napi_set_named_property(env, returnObj, "Tracks", tracksObj);
-    //auto end = std::chrono::system_clock::now();
-    //std::chrono::duration<double> diff = end - start;
-    //std::cout << "Time " << diff.count() << " s\n";
-    MI.Close();
+    
     return returnObj;
 }
 
-napi_value GetLocal(napi_env env, napi_callback_info info)
+Napi::Value getLocal(const Napi::CallbackInfo &info)
 {
-    //Timing
-    //auto start = std::chrono::system_clock::now();
-
-    size_t result = 0;
-    size_t argc = 2;
-
-    char file[4096];
-
-    napi_value args[2];
-    napi_status status;
-
-    //Input object and property arrays
-    napi_value inputObj; //taken from argv[1]
-    napi_value generalProps;
-    napi_value videoProps;
-    napi_value audioProps;
-    napi_value textProps;
-    napi_value menuProps;
-
+    Napi::Env env = info.Env();
+    
     //Output object and property/value arrays
-    napi_value returnObj;
-    status = napi_create_object(env, &returnObj);
-    assert(status == napi_ok);
-    napi_value general;
-    //status = napi_create_object(env, &general);
-    assert(status == napi_ok);
-    napi_value videoArray;
-    status = napi_create_array(env, &videoArray);
-    napi_value audioArray;
-    status = napi_create_array(env, &audioArray);
-    napi_value textArray;
-    status = napi_create_array(env, &textArray);
-
-    status = napi_get_cb_info(env, info, &argc, args, NULL, NULL);
-    if (status != napi_ok)
-        napi_throw_error(env, NULL, "Failed to parse arguments");
-
-    status = napi_get_value_string_utf8(env, args[0], file, 4096, &result);
-    assert(status == napi_ok);
-    inputObj = args[1];
-
+    Napi::Object returnObj = Napi::Object::New(env);
+    
+    Napi::Object general = Napi::Object::New(env);
+    Napi::Array videoArray = Napi::Array::New(env);
+    Napi::Array audioArray = Napi::Array::New(env);
+    Napi::Array textArray = Napi::Array::New(env);
+    
+    string file = info[0].As<Napi::String>().Utf8Value();
+    const char * cfile = file.c_str();
+    Napi::Object inputObj = info[1].As<Napi::Object>();
     string v = MI.Option(__T("Info_Version"));
-    Napi::String version = Napi::String::From(env, v);
-    status = napi_set_named_property(env, returnObj, "Version", version);
+    returnObj.Set("Version", Napi::String::From(env, v));
     //From: preparing an example file for reading
-    FILE *F = fopen(file, "r"); //You can use something else than a f$
+    FILE *F = fopen(cfile, "r"); //You can use something else than a f$
 
     if (F == 0)
-        return NULL;
+        throw Napi::Error::New(env, "could not open file");
 
-    status = napi_set_named_property(env, returnObj, "File", args[0]);
+    returnObj.Set("File", info[0].As<Napi::String>());
     //From: preparing a memory buffer for reading
     unsigned char *From_Buffer = new unsigned char[7 * 188]; //Note: you can do your own buffer
     size_t From_Buffer_Size;                                 //The size of the read file buffer
@@ -261,18 +181,16 @@ napi_value GetLocal(napi_env env, napi_callback_info info)
     //Finalizing
     MI.Open_Buffer_Finalize(); //This is the end of the stream, MediaInfo must finish some work
 
-    status = napi_get_named_property(env, inputObj, "General", &generalProps);
-    assert(status == napi_ok);
-    status = napi_get_named_property(env, inputObj, "Video", &videoProps);
-    status = napi_get_named_property(env, inputObj, "Audio", &audioProps);
-    status = napi_get_named_property(env, inputObj, "Text", &textProps);
-    status = napi_get_named_property(env, inputObj, "Menu", &menuProps);
+
+    Napi::Array generalProps = inputObj.Get("General").As<Napi::Array>();
+    Napi::Array videoProps = inputObj.Get("Video").As<Napi::Array>();
+    Napi::Array audioProps = inputObj.Get("Audio").As<Napi::Array>();
+    Napi::Array textProps = inputObj.Get("Text").As<Napi::Array>();
 
     for (size_t StreamKind = (size_t)Stream_General; StreamKind < Stream_Max; StreamKind++)
     {
         for (size_t StreamPos = 0; StreamPos < (size_t)MI.Count_Get((stream_t)StreamKind); StreamPos++)
         {
-            //Pour chaque stream
             String stream = MI.Get((stream_t)StreamKind, StreamPos, __T("StreamKind/String"));
             String pos = MI.Get((stream_t)StreamKind, StreamPos, __T("StreamKindPos"));
             size_t streamNum = 0;
@@ -284,69 +202,59 @@ napi_value GetLocal(napi_env env, napi_callback_info info)
             {
             case Stream_General:
                 general = processProps(env, Stream_General, (size_t)streamNum, generalProps);
-                status = napi_set_named_property(env, returnObj, "General", general);
+                returnObj.Set("General", general);
                 break;
             case Stream_Video:
                 if (videoProps)
                 {
-                    napi_value element = processProps(env, Stream_Video, (size_t)streamNum, videoProps);
-                    status = napi_set_element(env, videoArray, streamNum, element);
+                    Napi::Value element = processProps(env, Stream_Video, (size_t)streamNum, videoProps);
+                    videoArray.Set(streamNum, element);
                 }
                 break;
             case Stream_Audio:
                 if (audioProps)
                 {
-                    napi_value element = processProps(env, Stream_Audio, (size_t)streamNum, audioProps);
-                    status = napi_set_element(env, audioArray, streamNum, element);
+                    Napi::Value element = processProps(env, Stream_Audio, (size_t)streamNum, audioProps);
+                    audioArray.Set(streamNum, element);
                 }
                 break;
             case Stream_Text:
                 if (textProps)
                 {
-                    napi_value element = processProps(env, Stream_Text, (size_t)streamNum, textProps);
-                    status = napi_set_element(env, textArray, streamNum, element);
+                    Napi::Value element = processProps(env, Stream_Text, (size_t)streamNum, textProps);
+                    textArray.Set(streamNum, element);
                 }
                 break;
             }
         }
     }
+
     MI.Close();
     fclose(F);
-    uint32_t len;
-    //napi_value tracksObj;
-    //status = napi_create_object(env, &tracksObj);
-    assert(status == napi_ok);
-    napi_get_array_length(env, videoArray, &len);
-    assert(status == napi_ok);
+    
+    uint32_t len = videoArray.Length();
+    
     if (videoProps && len > 0)
     {
-        napi_set_named_property(env, returnObj, "Video", videoArray);
-        assert(status == napi_ok);
+        returnObj.Set("Video", videoArray);
     }
-    napi_get_array_length(env, audioArray, &len);
-    assert(status == napi_ok);
+    len = audioArray.Length();
+    
     if (audioProps && len > 0)
     {
-        napi_set_named_property(env, returnObj, "Audio", audioArray);
-        assert(status == napi_ok);
+        returnObj.Set("Audio", audioArray);
     }
-    napi_get_array_length(env, textArray, &len);
-    assert(status == napi_ok);
+    len = textArray.Length();
+    
     if (textProps && len > 0)
     {
-        napi_set_named_property(env, returnObj, "Text", textArray);
-        assert(status == napi_ok);
+        returnObj.Set("Text", textArray);
     }
-    //status = napi_set_named_property(env, returnObj, "Tracks", tracksObj);
-    //status = 
-    //auto end = std::chrono::system_clock::now();
-    //std::chrono::duration<double> diff = end - start;
-    //std::cout << "Time " << diff.count() << " s\n";
     
     return returnObj;
 }
 
-napi_value Init(napi_env env, napi_value exports)
+/*napi_value Init(napi_env env, napi_value exports)
 {
     napi_status status;
     napi_value fn;
@@ -375,6 +283,15 @@ napi_value Init(napi_env env, napi_value exports)
         napi_throw_error(env, NULL, "Unable to populate exports");
     }
     return exports;
+}*/
+
+Napi::Object Init(Napi::Env env, Napi::Object exports) {
+    exports.Set(Napi::String::New(env, "get_local"),
+        Napi::Function::New(env, getLocal));
+    exports.Set(Napi::String::New(env, "get_file"),
+        Napi::Function::New(env, getFile));
+    return exports;
 }
 
-NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
+//NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
+NODE_API_MODULE(NODE_GYP_MODULE_NAME, Init);
