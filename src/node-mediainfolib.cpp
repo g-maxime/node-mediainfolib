@@ -313,7 +313,7 @@ Napi::Value getFile(const Napi::CallbackInfo &info)
     return returnObj;
 }
 
-/*Napi::Value getLocal(const Napi::CallbackInfo &info)
+Napi::Value getLocal(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
 
@@ -325,12 +325,13 @@ Napi::Value getFile(const Napi::CallbackInfo &info)
     Napi::Array textArray;
     Napi::Array otherArray;
     Napi::Array imageArray;
-    Napi::Object menuObject;
+    Napi::Array menuArray;
 
     string file = info[0].As<Napi::String>().Utf8Value();
 
     Napi::Object inputObj = info[1].As<Napi::Object>();
     string v = MI.Option(__T("Info_Version"));
+
     returnObj.Set("Version", Napi::String::From(env, v));
 
     const char *cfile = file.c_str();
@@ -338,8 +339,6 @@ Napi::Value getFile(const Napi::CallbackInfo &info)
 
     if (F == 0)
         throw Napi::Error::New(env, "could not open file");
-
-    returnObj.Set("File", info[0].As<Napi::String>());
 
     unsigned char *From_Buffer = new unsigned char[7 * 188];
     size_t From_Buffer_Size;
@@ -412,7 +411,7 @@ Napi::Value getFile(const Napi::CallbackInfo &info)
     if (inputObj.HasOwnProperty("Menu"))
     {
         menu = inputObj.Get("Menu").As<Napi::Boolean>();
-        menuObject = Napi::Object::New(env);
+        menuArray = Napi::Array::New(env);
     }
 
     for (size_t StreamKind = (size_t)Stream_General; StreamKind < Stream_Max; StreamKind++)
@@ -431,58 +430,132 @@ Napi::Value getFile(const Napi::CallbackInfo &info)
             case Stream_General:
                 if (generalProps)
                 {
-                    general = processProps(env, Stream_General, (size_t)streamNum, generalProps);
+                    //Napi::Object general;
+                    if (generalProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "default")
+                    {
+                        general = inform(env, Stream_General, (size_t)streamNum, false);
+                    }
+                    else if (generalProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "full")
+                    {
+                        general = inform(env, Stream_General, (size_t)streamNum, true);
+                    }
+                    else
+                    {
+                        general = processProps(env, Stream_General, (size_t)streamNum, generalProps);
+                    }
                     returnObj.Set("General", general);
                 }
                 break;
             case Stream_Video:
                 if (videoProps)
                 {
-                    Napi::Value element = processProps(env, Stream_Video, (size_t)streamNum, videoProps);
+                    Napi::Value element;
+                    if (videoProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "default")
+                    {
+                        element = inform(env, Stream_Video, (size_t)streamNum, false);
+                    }
+                    else if (videoProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "full")
+                    {
+                        element = inform(env, Stream_Video, (size_t)streamNum, true);
+                    }
+                    else
+                    {
+                        element = processProps(env, Stream_Video, (size_t)streamNum, videoProps);
+                    }
                     videoArray.Set(streamNum, element);
                 }
                 break;
             case Stream_Audio:
                 if (audioProps)
                 {
-                    Napi::Value element = processProps(env, Stream_Audio, (size_t)streamNum, audioProps);
+                    Napi::Value element;
+                    if (audioProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "default")
+                    {
+                        element = inform(env, Stream_Audio, (size_t)streamNum, false);
+                    }
+                    else if (audioProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "full")
+                    {
+                        element = inform(env, Stream_Audio, (size_t)streamNum, true);
+                    }
+                    else
+                    {
+                        element = processProps(env, Stream_Audio, (size_t)streamNum, audioProps);
+                    }
                     audioArray.Set(streamNum, element);
                 }
                 break;
             case Stream_Text:
                 if (textProps)
                 {
-                    Napi::Value element = processProps(env, Stream_Text, (size_t)streamNum, textProps);
+                    Napi::Value element;
+                    if (textProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "default")
+                    {
+                        element = inform(env, Stream_Text, (size_t)streamNum, false);
+                    }
+                    else if (textProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "full")
+                    {
+                        element = inform(env, Stream_Text, (size_t)streamNum, true);
+                    }
+                    else
+                    {
+                        element = processProps(env, Stream_Text, (size_t)streamNum, textProps);
+                    }
                     textArray.Set(streamNum, element);
                 }
                 break;
             case Stream_Other:
                 if (otherProps)
                 {
-                    Napi::Value element = processProps(env, Stream_Other, (size_t)streamNum, otherProps);
+                    Napi::Value element;
+                    if (otherProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "default")
+                    {
+                        element = inform(env, Stream_Other, (size_t)streamNum, false);
+                    }
+                    else if (otherProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "full")
+                    {
+                        element = inform(env, Stream_Other, (size_t)streamNum, true);
+                    }
+                    else
+                    {
+                        element = processProps(env, Stream_Other, (size_t)streamNum, otherProps);
+                    }
                     otherArray.Set(streamNum, element);
                 }
                 break;
             case Stream_Image:
                 if (imageProps)
                 {
-                    Napi::Value element = processProps(env, Stream_Image, (size_t)streamNum, imageProps);
+                    Napi::Value element;
+                    if (imageProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "default")
+                    {
+                        element = inform(env, Stream_Image, (size_t)streamNum, false);
+                    }
+                    else if (imageProps.Get((uint32_t)0).As<Napi::String>().Utf8Value() == "full")
+                    {
+                        element = inform(env, Stream_Image, (size_t)streamNum, true);
+                    }
+                    else
+                    {
+                        element = processProps(env, Stream_Image, (size_t)streamNum, imageProps);
+                    }
                     imageArray.Set(streamNum, element);
                 }
                 break;
             case Stream_Menu:
                 if (menu)
                 {
+                    Napi::Object element = inform(env, Stream_Menu, (size_t)streamNum, false);
                     string startStr = MI.Get(Stream_Menu, (size_t)streamNum, "Chapters_Pos_Begin", Info_Text, Info_Name);
                     string endStr = MI.Get(Stream_Menu, (size_t)streamNum, "Chapters_Pos_End", Info_Text, Info_Name);
                     int start = stoi(startStr);
                     int end = stoi(endStr);
                     for (int i = start; i < end; i++)
                     {
-                        string chapter = MI.Get(Stream_Menu, (size_t)streamNum, i, Info_Text);
-                        string startTime = MI.Get(Stream_Menu, (size_t)streamNum, i, Info_Name);
-                        menuObject.Set(chapter, startTime);
+                        string value = MI.Get(Stream_Menu, (size_t)streamNum, i, Info_Text);
+                        string key = MI.Get(Stream_Menu, (size_t)streamNum, i, Info_Name);
+                        element.Set(key, value);
                     }
+                    menuArray.Set(streamNum, element);
                 }
                 break;
             }
@@ -517,18 +590,18 @@ Napi::Value getFile(const Napi::CallbackInfo &info)
         returnObj.Set("Image", imageArray);
     }
 
-    if (menu && menuObject.GetPropertyNames().Length() > 0)
+    if (menu && menuArray.GetPropertyNames().Length() > 0)
     {
-        returnObj.Set("Menu", menuObject);
+        returnObj.Set("Menu", menuArray);
     }
 
     return returnObj;
-}*/
+}
 
 Napi::Object Init(Napi::Env env, Napi::Object exports)
 {
-    //exports.Set(Napi::String::New(env, "get_local"),
-    //            Napi::Function::New(env, getLocal));
+    exports.Set(Napi::String::New(env, "get_local"),
+                Napi::Function::New(env, getLocal));
     exports.Set(Napi::String::New(env, "get_file"),
                 Napi::Function::New(env, getFile));
     return exports;
